@@ -43,6 +43,6 @@
 		AuthenticationSource="SecureKey"
 		CacheRights="Session"
 		RestartSession="True"
-		SecurityEnabled="True"
+		SecurityEnabled="False"
 	/>
 </Setting>

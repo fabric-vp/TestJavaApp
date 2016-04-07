@@ -1,0 +1,9 @@
+*.lic
+*.lgp
+TeamDevelopment/
+_rdLivePreview*.lgx
+rdDataCache/
+rdDownload/
+rdErrorLog/
+_Definitions/_Settings.lgx
+SavedDashboards/Default_User_.xml

@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Setting
+	ID="_settings"
+	>
+	<GlobalCSS
+		ID="themeSignal"
+		Theme="Signal"
+	/>
+	<Application
+		Caption="Test Java App"
+	/>
+	<Path
+		AppPath="http://localhost:8080/TestJavaApp"
+	/>
+	<General
+		RepoFriendly="True"
+		ScriptingLanguage="JavaScript"
+	/>
+	<Connections>
+		<Connection
+			CommandTimeOut="60"
+			ID="SchemesPlus"
+			MySqlDatabase="ProcurePlusSchemesPlus"
+			MySqlPassword="1234"
+			MySqlPort="3306"
+			MySqlServer="localhost"
+			MySqlUser="LogiAnalytics"
+			Type="MySql"
+		/>
+				<Connection
+			ID="Merchants"
+			MySqlDatabase="ProcurePlusMerchantPlus"
+			MySqlPassword="1234"
+			MySqlPort="3306"
+			MySqlServer="localhost"
+			MySqlUser="LogiAnalytics"
+			Type="MySql"
+		/>
+	</Connections>
+	<TeamDevelopment/>
+	<Security
+		AuthenticationClientAddresses="92.52.80.240"
+		AuthenticationSource="SecureKey"
+		CacheRights="Session"
+		RestartSession="True"
+		SecurityEnabled="True"
+	/>
+</Setting>

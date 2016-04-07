@@ -1,0 +1,921 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Report
+	ID="Default"
+	>
+	<DefaultRequestParams
+		endDate="2016-02-01"
+		projectaspect="-"
+		startDate="2016-01-01"
+	/>
+	<PrintablePaging
+		MarginBottom=".5"
+		MarginLeft="1"
+		MarginRight="1"
+		MarginTop="1"
+		PageHeight="6.5"
+		PageWidth="9.5"
+		>
+		<PageHeader>
+			<Image
+				Caption="http://www.procure-plus.com/wp-content/themes/procure/images/logo.jpg"
+			/>
+			<Label/>
+		</PageHeader>
+		<PageFooter>
+			<Label
+				Caption="Page @Function.PageNumber~ of @Function.PageCount~"
+			/>
+		</PageFooter>
+	</PrintablePaging>
+	<Body>
+		<Dashboard2
+			DashboardColumns="2"
+			DashboardTabs="True"
+			ID="Dashboard1"
+			SaveFile="@Function.AppPhysicalPath~\SavedDashboards\Default_User_@Function.UserName~.xml"
+			>
+			<Panel
+				Caption="Merchant Sales Overview"
+				ID="pnl1"
+				>
+				<PanelContent>
+					<Label
+						Caption="Start Date:"
+					/>
+					<InputDate
+						DefaultValue="@Request.startDate~"
+						ID="startDate"
+						InputDateReformat="yyyy-MM-dd"
+						>
+						<EventHandler
+							DhtmlEvent="onChange"
+							ID="updatePieChartAndTableSD"
+							>
+							<Action
+								ElementID="MST, MST-PieChart"
+								ID="refreshPieChartAndTableSD"
+								Type="RefreshElement"
+							/>
+						</EventHandler>
+					</InputDate>
+					<Spaces/>
+					<Label
+						Caption="End Date:"
+					/>
+					<InputDate
+						DefaultValue="@Request.endDate~"
+						ID="endDate"
+						InputDateReformat="yyyy-MM-dd"
+						>
+						<EventHandler
+							DhtmlEvent="onChange"
+							ID="updatePieChartAndTableED"
+							>
+							<Action
+								ElementID="MST, MST-PieChart"
+								ID="refreshPieChartAndTableED"
+								Type="RefreshElement"
+							/>
+						</EventHandler>
+					</InputDate>
+					<Spaces/>
+					<ChartCanvas
+						ChartCaption="Sales Transactions - Total invoice price by organisaton"
+						ChartHeight="300"
+						ChartWidth="500"
+						ID="MST-PieChart"
+						>
+						<Series
+							ChartLabelColumn="organisation_name"
+							ChartYDataColumn="rdGrgrtotal-total_invoice_price-sum"
+							ShowDataValues="True"
+							ShowDataValuesFormat="mps3"
+							Type="Pie"
+							>
+							<Quicktip>
+								<QuicktipRow
+									Caption="organisation_name: "
+									Value="@Chart.organisation_name~"
+								/>
+								<QuicktipRow
+									Caption="total_invoice_price: "
+									Format="mps9"
+									Value="@Chart.rdGrgrtotal-total_invoice_price-sum~"
+								/>
+							</Quicktip>
+						</Series>
+						<Resizer
+							MinHeight="150"
+							MinWidth="250"
+						/>
+						<DataLayer
+							ConnectionID="Merchants"
+							ID="SQLDataLayer5"
+							Source="SELECT organisations.name as organisation_name, merchant_accounts.account_name as merchant_account_name, merchant_accounts.account_num as merchant_account_number, COUNT(DISTINCT sales_transaction_items_base.sales_transaction_id) as order_count, COALESCE(credited_orders.credits, 0) as credited_order_count, COUNT(DISTINCT sales_transactions_disputed.merchant_ticket_no) as disputed_order_count, COALESCE(SUM(sales_transaction_items_base.line_net_value), 0.00) as total_unit_cost, COALESCE(SUM(sales_transaction_items_invoiced.line_net_value), 0.00) as total_invoice_price
+FROM (merchant_accounts)
+LEFT JOIN sales_transactions as sales_transactions_base ON sales_transactions_base.merchant_account_id = merchant_accounts.id AND sales_transactions_base.status = 1
+LEFT JOIN sales_transaction_items as sales_transaction_items_base ON sales_transaction_items_base.sales_transaction_id = sales_transactions_base.id AND sales_transaction_items_base.delivery_date &gt;= &quot;@Request.startDate~&quot; AND sales_transaction_items_base.delivery_date &lt;= &quot;@Request.endDate~&quot; AND sales_transaction_items_base.status = 1
+LEFT JOIN ProcurePlusCatalogueManagement.organisations ON organisations.id = merchant_accounts.organisation_id AND organisations.status = 1
+LEFT JOIN sales_transactions as sales_transactions_disputed ON sales_transactions_disputed.id = sales_transactions_base.id AND sales_transactions_disputed.status = 1 AND (sales_transaction_items_base.dispute_resolved_date IS NOT NULL OR sales_transactions_disputed.sales_transactions_status = &quot;Disputed&quot;)
+LEFT JOIN (
+ SELECT sales_transactions.merchant_account_id,
+ Count(DISTINCT sales_transaction_items.sales_transaction_id) AS credits
+
+ FROM sales_transaction_items
+ JOIN credit_transaction_items
+ ON credit_transaction_items.sales_transaction_item_id =
+ sales_transaction_items.id
+ AND credit_transaction_items.`status` = 1
+
+ JOIN sales_transactions ON sales_transactions.id = sales_transaction_items.sales_transaction_id
+
+ WHERE sales_transaction_items.status = 1
+ AND sales_transaction_items.delivery_date
+ &gt;= &quot;@Request.startDate~&quot; AND sales_transaction_items.delivery_date
+ &lt;= &quot;@Request.endDate~&quot; 
+
+ GROUP BY sales_transactions.merchant_account_id
+ ) as credited_orders ON credited_orders.merchant_account_id = merchant_accounts.id
+LEFT JOIN sales_transaction_items as sales_transaction_items_invoiced ON sales_transaction_items_invoiced.id = sales_transaction_items_base.id AND sales_transaction_items_invoiced.status = 1 AND sales_transaction_items_invoiced.item_status IN (&quot;INVOICED&quot;, &quot;CREDITED&quot;)
+WHERE `merchant_accounts`.`status` = 1
+AND `sales_transaction_items_base`.`item_status` != &quot;Cancelled&quot;
+GROUP BY sales_transactions_base.merchant_account_id
+ORDER BY organisation_name ASC"
+							Type="SQL"
+							>
+							<GroupFilter
+								DataType="Text"
+								GroupColumn="organisation_name"
+								KeepGroupedRows="False"
+								>
+								<GroupAggregateColumn
+									AggregateColumn="total_invoice_price"
+									AggregateFunction="SUM"
+									DataType="Number"
+									ID="rdGrgrtotal-total_invoice_price-sum"
+								/>
+							</GroupFilter>
+							<SortFilter
+								DataType="Number"
+								SortColumn="rdGrgrtotal-total_invoice_price-sum"
+								SortSequence="Descending"
+							/>
+							<RelevanceFilter
+								DataColumn="rdGrgrtotal-total_invoice_price-sum"
+								IrrelevanceLabel="Other"
+								LabelColumn="organisation_name"
+								RelevanceType="NumberOfRows"
+								RelevanceValue="0"
+							/>
+						</DataLayer>
+					</ChartCanvas>
+					<Label
+						Caption="Export table data to PDF"
+						Class="ThemeAlignRight"
+						HtmlTag="P"
+						>
+						<Action
+							Type="PDF"
+							>
+							<Target
+								ExportDataTableID="MST"
+								Type="PDF"
+							/>
+						</Action>
+					</Label>
+					<DataTable
+						AccessibleHeaders="True"
+						AccessibleSummary="DataTable"
+						ID="MST"
+						KeepScrollPosition="True"
+						RememberSort="True"
+						ResizableColumns="True"
+						SortArrows="True"
+						TableBorder="0"
+						>
+						<DataLayer
+							ConnectionID="Merchants"
+							ID="SQLDataLayer4"
+							Source="SELECT organisations.name as organisation_name, merchant_accounts.account_name as merchant_account_name, merchant_accounts.account_num as merchant_account_number, COUNT(DISTINCT sales_transaction_items_base.sales_transaction_id) as order_count, COALESCE(credited_orders.credits, 0) as credited_order_count, COUNT(DISTINCT sales_transactions_disputed.merchant_ticket_no) as disputed_order_count, COALESCE(SUM(sales_transaction_items_base.line_net_value), 0.00) as total_unit_cost, COALESCE(SUM(sales_transaction_items_invoiced.line_net_value), 0.00) as total_invoice_price
+FROM (merchant_accounts)
+LEFT JOIN sales_transactions as sales_transactions_base ON sales_transactions_base.merchant_account_id = merchant_accounts.id AND sales_transactions_base.status = 1
+LEFT JOIN sales_transaction_items as sales_transaction_items_base ON sales_transaction_items_base.sales_transaction_id = sales_transactions_base.id AND sales_transaction_items_base.delivery_date &gt;= &quot;@Request.startDate~&quot; AND sales_transaction_items_base.delivery_date &lt;= &quot;@Request.endDate~&quot; AND sales_transaction_items_base.status = 1
+LEFT JOIN ProcurePlusCatalogueManagement.organisations ON organisations.id = merchant_accounts.organisation_id AND organisations.status = 1
+LEFT JOIN sales_transactions as sales_transactions_disputed ON sales_transactions_disputed.id = sales_transactions_base.id AND sales_transactions_disputed.status = 1 AND (sales_transaction_items_base.dispute_resolved_date IS NOT NULL OR sales_transactions_disputed.sales_transactions_status = &quot;Disputed&quot;)
+LEFT JOIN (
+ SELECT sales_transactions.merchant_account_id,
+ Count(DISTINCT sales_transaction_items.sales_transaction_id) AS credits
+
+ FROM sales_transaction_items
+ JOIN credit_transaction_items
+ ON credit_transaction_items.sales_transaction_item_id =
+ sales_transaction_items.id
+ AND credit_transaction_items.`status` = 1
+
+ JOIN sales_transactions ON sales_transactions.id = sales_transaction_items.sales_transaction_id
+
+ WHERE sales_transaction_items.status = 1
+ AND sales_transaction_items.delivery_date
+ &gt;= &quot;@Request.startDate~&quot; AND sales_transaction_items.delivery_date
+ &lt;= &quot;@Request.endDate~&quot; 
+
+ GROUP BY sales_transactions.merchant_account_id
+ ) as credited_orders ON credited_orders.merchant_account_id = merchant_accounts.id
+LEFT JOIN sales_transaction_items as sales_transaction_items_invoiced ON sales_transaction_items_invoiced.id = sales_transaction_items_base.id AND sales_transaction_items_invoiced.status = 1 AND sales_transaction_items_invoiced.item_status IN (&quot;INVOICED&quot;, &quot;CREDITED&quot;)
+WHERE `merchant_accounts`.`status` = 1
+AND `sales_transaction_items_base`.`item_status` != &quot;Cancelled&quot;
+GROUP BY sales_transactions_base.merchant_account_id
+ORDER BY organisation_name ASC"
+							Type="SQL"
+						/>
+						<InteractivePaging
+							CaptionType="Image"
+							HideShowPrevNextCaptions="False"
+							HideWhenOnePage="True"
+							IDnotSupportedHere="pagingTableNumbered"
+							Location="Top"
+							PageRowCount="20"
+							ShowPageNumber="Numbered"
+						/>
+						<DataTableColumn
+							Header="organisation_name"
+							ID="colorganisation_name"
+							>
+							<Label
+								Caption="@Data.organisation_name~"
+								ID="colorganisation_name"
+							/>
+							<DataColumnSort
+								DataColumn="organisation_name"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="merchant_account_name"
+							ID="colmerchant_account_name"
+							>
+							<Label
+								Caption="@Data.merchant_account_name~"
+								ID="colmerchant_account_name"
+							/>
+							<DataColumnSort
+								DataColumn="merchant_account_name"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="merchant_account_number"
+							ID="colmerchant_account_number"
+							>
+							<Label
+								Caption="@Data.merchant_account_number~"
+								ID="colmerchant_account_number"
+							/>
+							<DataColumnSort
+								DataColumn="merchant_account_number"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="order_count"
+							ID="colorder_count"
+							>
+							<Label
+								Caption="@Data.order_count~"
+								ID="colorder_count"
+							/>
+							<DataColumnSort
+								DataColumn="order_count"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="credited_order_count"
+							ID="colcredited_order_count"
+							>
+							<Label
+								Caption="@Data.credited_order_count~"
+								ID="colcredited_order_count"
+							/>
+							<DataColumnSort
+								DataColumn="credited_order_count"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="disputed_order_count"
+							ID="coldisputed_order_count"
+							>
+							<Label
+								Caption="@Data.disputed_order_count~"
+								ID="coldisputed_order_count"
+							/>
+							<DataColumnSort
+								DataColumn="disputed_order_count"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="total_unit_cost"
+							ID="coltotal_unit_cost"
+							>
+							<Label
+								Caption="@Data.total_unit_cost~"
+								ID="coltotal_unit_cost"
+							/>
+							<DataColumnSort
+								DataColumn="total_unit_cost"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="total_invoice_price"
+							ID="coltotal_invoice_price"
+							>
+							<Label
+								Caption="@Data.total_invoice_price~"
+								ID="coltotal_invoice_price"
+							/>
+							<DataColumnSort
+								DataColumn="total_invoice_price"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+					</DataTable>
+				</PanelContent>
+			</Panel>
+			<Panel
+				Caption="Sum of primary costing models per element-property type/scheme"
+				ID="pnl2"
+				>
+				<PanelContent>
+					<InputSelectList
+						DefaultValue="@Request.project_id~"
+						ID="project_id"
+						IncludeBlank="True"
+						IncludeBlankCaption="Select project"
+						OptionCaptionColumn="name"
+						OptionValueColumn="id"
+						>
+						<DataLayer
+							ConnectionID="SchemesPlus"
+							ID="getProjectList"
+							Source="select id, name from projects where status = 1 order by projects.name asc"
+							Type="SQL"
+						/>
+						<EventHandler
+							DhtmlEvent="onChange"
+							>
+							<Action
+								ElementID="project_aspect_id"
+								Type="RefreshElement"
+							/>
+							<Action
+								ElementID="project_aspect_id"
+								Type="ShowElement"
+							/>
+						</EventHandler>
+					</InputSelectList>
+					<InputSelectList
+						ID="project_aspect_id"
+						IncludeBlank="True"
+						IncludeBlankCaption="Select project aspect"
+						IncludeBlankValue="Select project aspect"
+						OptionCaptionColumn="name"
+						OptionValueColumn="project_aspect_id"
+						>
+						<DataLayer
+							ConnectionID="SchemesPlus"
+							ID="getProjectAspectList"
+							Source="SELECT
+pa.id as project_aspect_id,
+CASE `name`
+WHEN &apos;&apos; THEN pa.type
+else pa.name
+END AS `name`
+FROM project_aspects AS pa WHERE pa.`status` = 1 AND pa.project_id = &apos;@Request.project_id~&apos;"
+							Type="SQL"
+						/>
+						<EventHandler
+							DhtmlEvent="onChange"
+							>
+							<Action
+								ElementID="costingModels"
+								ID="updateTable"
+								Type="RefreshElement"
+							/>
+						</EventHandler>
+					</InputSelectList>
+					<DataTable
+						AccessibleHeaders="True"
+						AccessibleSummary="DataTable"
+						AjaxPaging="True"
+						ID="costingModels"
+						KeepScrollPosition="True"
+						RememberSort="True"
+						ResizableColumns="True"
+						SortArrows="True"
+						TableBorder="0"
+						>
+						<DataLayer
+							ConnectionID="SchemesPlus"
+							ID="SQLDataLayer6"
+							Source="SELECT 
+  cm.`id` AS costing_model_id,
+  pa.type as project_aspect_type,
+  pt.`name` AS property_type_name,
+  et.name AS element_type_name,
+  cm.`type` costing_model_type,
+  SUM(cmi.`unit_cost` * cmi.`quantity`) AS costing_model_total
+FROM
+  projects AS p 
+  JOIN project_aspects AS pa 
+    ON pa.`project_id` = p.`id` 
+    AND pa.`status` = 1 and pa.id = &apos;@Request.project_aspect_id~&apos;
+  JOIN costing_models AS cm 
+    ON cm.project_aspect_id = pa.`id`
+    AND cm.`primary` = 1
+  JOIN costing_model_items AS cmi 
+    ON cmi.`costing_model_id` = cm.`id` 
+    AND cmi.`status` = 1 
+  LEFT JOIN property_types AS pt 
+    ON pt.`id` = cm.`property_type_id` 
+  LEFT JOIN elements AS e 
+    ON e.`id` = cm.`element_id` 
+  LEFT JOIN element_types AS et 
+    ON et.`id` = e.`element_type_id`
+WHERE p.`status` = 1 
+  AND p.`id` 
+GROUP BY cm.`id`;"
+							Type="SQL"
+						/>
+						<InteractivePaging
+							CaptionType="Image"
+							HideShowPrevNextCaptions="False"
+							HideWhenOnePage="True"
+							IDnotSupportedHere="pagingTableNumbered"
+							Location="Top"
+							PageRowCount="20"
+							ShowPageNumber="Numbered"
+						/>
+						<DataTableColumn
+							Header="costing_model_id"
+							ID="colcosting_model_id"
+							>
+							<Label
+								Caption="@Data.costing_model_id~"
+								ID="colcosting_model_id"
+							/>
+							<DataColumnSort
+								DataColumn="costing_model_id"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="project_aspect_type"
+							ID="colproject_aspect_type"
+							>
+							<Label
+								Caption="@Data.project_aspect_type~"
+								ID="colproject_aspect_type"
+							/>
+							<DataColumnSort
+								DataColumn="project_aspect_type"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="property_type_name"
+							ID="colproperty_type_name"
+							>
+							<Label
+								Caption="@Data.property_type_name~"
+								ID="colproperty_type_name"
+							/>
+							<DataColumnSort
+								DataColumn="property_type_name"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="element_type_name"
+							ID="colelement_type_name"
+							>
+							<Label
+								Caption="@Data.element_type_name~"
+								ID="colelement_type_name"
+							/>
+							<DataColumnSort
+								DataColumn="element_type_name"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="costing_model_type"
+							ID="colcosting_model_type"
+							>
+							<Label
+								Caption="@Data.costing_model_type~"
+								ID="colcosting_model_type"
+							/>
+							<DataColumnSort
+								DataColumn="costing_model_type"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="costing_model_total"
+							ID="colcosting_model_total"
+							>
+							<Label
+								Caption="@Data.costing_model_total~"
+								ID="colcosting_model_total"
+							/>
+							<DataColumnSort
+								DataColumn="costing_model_total"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+					</DataTable>
+				</PanelContent>
+			</Panel>
+			<Panel
+				Caption="Projects by framework"
+				ID="Panl3"
+				PanelDescription="View project by framework against each financial year
+"
+				>
+				<DefaultRequestParams
+					MyParameter="[Use edit to change this caption]"
+				/>
+				<PanelParameters>
+					<InputText
+						DefaultValue="@Request.MyParameter~"
+						ID="MyParameter"
+					/>
+					<InputDate
+						DefaultValue="@Request.financialStartDate~"
+						ID="financialStartDate"
+						InputDateReformat="yyyy-MM-dd"
+						>
+						<EventHandler
+							DhtmlEvent="onChange"
+							ID="updateFrameworkPieChart"
+							>
+							<Action
+								ElementID="projectByFramework"
+								ID="refreshStartDate"
+								Type="RefreshElement"
+							/>
+						</EventHandler>
+					</InputDate>
+				</PanelParameters>
+				<PanelContent>
+					<Label
+						Caption="Select financial year: "
+					/>
+					<InputSelectList
+						ID="sql"
+						OptionCaptionColumn="display"
+						OptionValueColumn="sql"
+						>
+						<DataLayer
+							ID="StaticDataLayer1"
+							Type="Static"
+							>
+							<StaticDataRow
+								display="2013-2014"
+								sql="and created &gt;= &apos;2013-04-01&apos; and created &lt;= &apos;2014-04-01&apos;"
+							/>
+							<StaticDataRow
+								display="2014-2015"
+								sql="and created &gt;= &apos;2014-04-01&apos; and created &lt;= &apos;2015-04-01&apos;"
+							/>
+							<StaticDataRow
+								display="2015-2016"
+								sql="and created &gt;= &apos;2015-04-01&apos; and created &lt;= &apos;2016-04-01&apos;"
+							/>
+						</DataLayer>
+						<EventHandler
+							DhtmlEvent="onChange"
+							>
+							<Action
+								ElementID="projectByFramework"
+								ID="refreshProjectByFramework"
+								Type="RefreshElement"
+							/>
+						</EventHandler>
+					</InputSelectList>
+					<ChartCanvas
+						ChartCaption="Project creation by framework"
+						ChartHeight="300"
+						ChartOrientation="SwapAxes"
+						ChartWidth="500"
+						ID="projectByFramework"
+						>
+						<Series
+							ChartXDataColumn="framework"
+							ChartYDataColumn="rdGrAggr-framework-count"
+							Type="Bar"
+							>
+							<Quicktip>
+								<QuicktipRow
+									Caption="framework: "
+									Value="@Chart.framework~"
+								/>
+								<QuicktipRow
+									Caption="framework: "
+									Format="#,##0."
+									Value="@Chart.rdGrAggr-framework-count~"
+								/>
+							</Quicktip>
+							<DataLabels
+								Format="#,##0."
+							/>
+						</Series>
+						<ChartXAxis
+							AxisCaption="framework"
+						/>
+						<ChartYAxis
+							AxisCaption="Number of projects"
+						/>
+						<Resizer
+							MinHeight="150"
+							MinWidth="250"
+						/>
+						<DataLayer
+							ConnectionID="SchemesPlus"
+							ID="SQLDataLayer7"
+							Source="SELECT projects.`name`, projects.`framework` FROM projects where status = 1 @Request.sql~;"
+							Type="SQL"
+							>
+							<GroupFilter
+								DataType="Text"
+								GroupColumn="framework"
+								KeepGroupedRows="False"
+								>
+								<GroupAggregateColumn
+									AggregateColumn="framework"
+									AggregateFunction="COUNT"
+									DataType="Text"
+									ID="rdGrAggr-framework-count"
+								/>
+							</GroupFilter>
+							<SortFilter
+								DataType="Number"
+								SortColumn="rdGrAggr-framework-count"
+								SortSequence="Ascending"
+							/>
+							<RelevanceFilter
+								DataColumn="rdGrAggr-framework-count"
+								IrrelevanceLabel="Other"
+								LabelColumn="framework"
+								RelevanceType="NumberOfRows"
+								RelevanceValue="0"
+							/>
+						</DataLayer>
+					</ChartCanvas>
+				</PanelContent>
+			</Panel>
+			<Panel
+				Caption="Performance Test"
+				ID="Panel1"
+				PanelDescription="Performance Test"
+				>
+				<PanelContent>
+					<Label
+						Caption="Export table data to PDF"
+						Class="ThemeAlignLeft"
+						HtmlTag="P"
+						>
+						<Action
+							Type="PDF"
+							>
+							<Target
+								ExportDataTableID="invoiceExportTest"
+								Type="PDF"
+							/>
+						</Action>
+					</Label>
+					<DataTable
+						AccessibleHeaders="True"
+						AccessibleSummary="DataTable"
+						ID="invoiceExportTest"
+						KeepScrollPosition="True"
+						RememberSort="True"
+						ResizableColumns="True"
+						SortArrows="True"
+						TableBorder="0"
+						>
+						<DataLayer
+							ConnectionID="SchemesPlus"
+							ID="SQLDataLayer9"
+							Source="SELECT 
+  uom.`unit`,
+  a.`uprn`,
+  a.`address`,
+  so.id,
+  ci.product_code,
+  ci.name,
+  ii.quantity,
+  ii.unit_cost,
+  (
+    ii.quantity - SUM(COALESCE(ii.quantity, 0))
+  ) AS unpaid_quantity,
+  ROUND(
+    ((ii.`quantity` * ii.unit_cost) / 100) * vr.rate,
+    2
+  ) AS vat,
+   ii.`unit_cost`*ii.quantity AS net_total
+FROM
+  invoice_items AS ii 
+  JOIN costing_model_items AS cmi 
+    ON cmi.`id` = ii.`costing_model_item_id` 
+  JOIN `ProcurePlusCatalogueManagement`.`catalogue_items` AS ci 
+    ON ci.`id` = cmi.catalogue_item_id 
+  JOIN `ProcurePlusCatalogueManagement`.`unit_of_measures` AS uom 
+    ON uom.`id` = ci.`unit_of_measure_id` 
+  JOIN supplier_order_items AS soi 
+    ON soi.`id` = ii.`supplier_order_item_id` 
+  JOIN supplier_orders AS so 
+    ON so.`id` = soi.`supplier_order_id` 
+  JOIN addresses AS a 
+    ON a.`id` = so.`address_id` 
+  JOIN invoices AS i 
+    ON i.`id` = ii.`invoice_id` 
+  JOIN ProcurePlusCatalogueManagement.`vat_rates` AS vr 
+    ON vr.`id` = i.`vat_rate_id` 
+WHERE ii.invoice_id = 43563 
+GROUP BY ii.`id`;"
+							Type="SQL"
+						/>
+						<InteractivePaging
+							CaptionType="Image"
+							HideShowPrevNextCaptions="False"
+							HideWhenOnePage="True"
+							IDnotSupportedHere="pagingTableNumbered"
+							Location="Top"
+							PageRowCount="20"
+							ShowPageNumber="Numbered"
+						/>
+						<DataTableColumn
+							Header="unit"
+							ID="colunit"
+							>
+							<Label
+								Caption="@Data.unit~"
+								ID="colunit"
+							/>
+							<DataColumnSort
+								DataColumn="unit"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="uprn"
+							ID="coluprn"
+							>
+							<Label
+								Caption="@Data.uprn~"
+								ID="coluprn"
+							/>
+							<DataColumnSort
+								DataColumn="uprn"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="address"
+							ID="coladdress"
+							>
+							<Label
+								Caption="@Data.address~"
+								ID="coladdress"
+							/>
+							<DataColumnSort
+								DataColumn="address"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="id"
+							ID="colid"
+							>
+							<Label
+								Caption="@Data.id~"
+								ID="colid"
+							/>
+							<DataColumnSort
+								DataColumn="id"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="product_code"
+							ID="colproduct_code"
+							>
+							<Label
+								Caption="@Data.product_code~"
+								ID="colproduct_code"
+							/>
+							<DataColumnSort
+								DataColumn="product_code"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="name"
+							ID="colname"
+							>
+							<Label
+								Caption="@Data.name~"
+								ID="colname"
+							/>
+							<DataColumnSort
+								DataColumn="name"
+								DataType="Text"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="quantity"
+							ID="colquantity"
+							>
+							<Label
+								Caption="@Data.quantity~"
+								ID="colquantity"
+							/>
+							<DataColumnSort
+								DataColumn="quantity"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="unit_cost"
+							ID="colunit_cost"
+							>
+							<Label
+								Caption="@Data.unit_cost~"
+								ID="colunit_cost"
+							/>
+							<DataColumnSort
+								DataColumn="unit_cost"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="unpaid_quantity"
+							ID="colunpaid_quantity"
+							>
+							<Label
+								Caption="@Data.unpaid_quantity~"
+								ID="colunpaid_quantity"
+							/>
+							<DataColumnSort
+								DataColumn="unpaid_quantity"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="vat"
+							ID="colvat"
+							>
+							<Label
+								Caption="@Data.vat~"
+								ID="colvat"
+							/>
+							<DataColumnSort
+								DataColumn="vat"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+						<DataTableColumn
+							Header="net_total"
+							ID="colnet_total"
+							>
+							<Label
+								Caption="@Data.net_total~"
+								ID="colnet_total"
+							/>
+							<DataColumnSort
+								DataColumn="net_total"
+								DataType="Number"
+							/>
+						</DataTableColumn>
+					</DataTable>
+				</PanelContent>
+			</Panel>
+		</Dashboard2>
+		<LineBreak
+			ID="LineBreak1"
+		/>
+	</Body>
+	<ideTestParams
+		endDate=""
+		financialStartDate=""
+		MyParameter=""
+		project_aspect_id=""
+		project_id=""
+		sql=""
+		startDate=""
+	/>
+</Report>
